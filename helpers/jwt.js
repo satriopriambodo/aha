@@ -4,8 +4,8 @@ function token(value) {
   return jwt.sign(value, process.env.SECRETKEY);
 }
 
-function convertToPayload(value) {
+function validateJWT(value) {
   return jwt.verify(value, process.env.SECRETKEY);
 }
 
-module.exports = { token, convertToPayload };
+module.exports = { token, validateJWT };

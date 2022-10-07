@@ -25,6 +25,40 @@ const register = async (req, res, next) => {
       password,
       token_verification: token(generateModal),
     });
+
+    //send email
+    const transporter = await nodemailer.createTransport({
+      service: "gmail",
+      host: "smtp.gmail.com",
+      secure: false,
+
+      // pool: true,
+      // host: process.env.EMAIL_HOST,
+      // port: process.env.EMAIL_PORT,
+      // secure: true,
+
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_TEST_APP_PASSWORD,
+      },
+    });
+
+    const options = {
+      from: "pancasanjaya69@gmail.com",
+      to: response.email,
+      subject: "Email Confirmation",
+      html: `Press  <a href=http://localhost:5000/users/verification/${response.token_verification}> here <a/> to verify your email. Thanks!`,
+    };
+
+    transporter.sendMail(options, (err) => {
+      console.log(err);
+      if (err) {
+        res.status(500).json({ message: "Wrong email or password" });
+      } else {
+        res.status(200).json({ message: "Email sent!" });
+      }
+    });
+
     res.status(201).json({
       id: response.id,
       name: response.name,
@@ -54,6 +88,38 @@ const register = async (req, res, next) => {
   }
 };
 
+const verifyEmail = async (req, res) => {
+  try {
+    const { active_at, email, token_verification } = req.body;
+    const currentUser = await User.findOne({
+      where: { token_verification: req.params.token_verification },
+    });
+
+    if (!currentUser) {
+      throw { name: "User not found" };
+    } else {
+      const response = await User.update(
+        { active_at: new Date() },
+        { where: { token_verification: req.params.token_verification } }
+      );
+    }
+
+    // res.redirect(`${process.env.URL_EMAIL}verified_success`);
+    res.redirect("https://google.com/");
+    res.status(200).json({ message: "ok" });
+  } catch (error) {
+    console.log(error);
+    if (error.name === "User not found") {
+      res.status(400).json({
+        code: 400,
+        status: "failed",
+        message: "expired verification",
+      });
+      // res.redirect(`${process.env.URL_EMAIL}expired_verify`);
+    }
+  }
+};
+
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -64,6 +130,10 @@ const login = async (req, res, next) => {
     const response = await User.findOne({ where: { email } });
     if (!response) {
       throw { name: "Unauthorized" };
+    }
+
+    if (response.active_at === null) {
+      throw { name: "Unverified" };
     }
 
     const isValid = bcrypt.compareSync(password, response.password);
@@ -108,6 +178,12 @@ const login = async (req, res, next) => {
         status: "failed",
         message: "Wrong email or password!",
       });
+    } else if (error.name === "Unverified") {
+      res.status(400).json({
+        code: 400,
+        status: "failed",
+        message: "Verify your email first",
+      });
     }
   }
 };
@@ -116,6 +192,7 @@ const fetchUser = async (req, res, next) => {
   try {
     const result = await User.findAll({
       order: [["id", "desc"]],
+      attributes: { exclude: ["password", "token_verification"] },
     });
     res.status(200).json(result);
   } catch (error) {
@@ -155,20 +232,16 @@ const resetPassword = async (req, res) => {
         { where: { id }, returning: true }
       );
 
-      // const data = await User.findByPk(id);
-
       res.status(200).json({
         code: 200,
         status: "success",
         message: `Password has been updated`,
-        // data,
       });
     } else {
       res.status(400).json({
         code: 400,
         status: "failed",
         message: `User ID not found`,
-        // data: [],
       });
     }
   } catch (error) {
@@ -196,4 +269,4 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, resetPassword, fetchUser };
+module.exports = { register, login, resetPassword, fetchUser, verifyEmail };
