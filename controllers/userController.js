@@ -48,7 +48,7 @@ const register = async (req, res, next) => {
       from: "pancasanjaya69@gmail.com",
       to: response.email,
       subject: "Email Confirmation",
-      html: `Press  <a href=http://localhost:5000/users/verification/${response.token_verification}> here <a/> to verify your email. Thanks!`,
+      html: `Press  <a href=https://aha-satrio.herokuapp.com/users/verification/${response.token_verification}> here <a/> to verify your email. Thanks!`,
     };
 
     transporter.sendMail(options, (err) => {

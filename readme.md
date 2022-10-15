@@ -1,1 +1,1 @@
-https://git.heroku.com/aha-satrio.git
+https://aha-satrio.herokuapp.com/
