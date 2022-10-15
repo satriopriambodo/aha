@@ -30,12 +30,12 @@ const authGoogle = async (req, res, next) => {
       id: user.id,
       email: user.email,
     };
-    const role = user.role;
+    const name = user.name;
     const email = user.email;
     res.status(200).json({
+      user_name: name,
+      user_email: email,
       access_token: token(payloadUser),
-      userRole: role,
-      userEmail: email,
     });
   } catch (err) {
     next(err);

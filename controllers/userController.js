@@ -2,7 +2,7 @@ const { User } = require("../models");
 const bcrypt = require("bcrypt");
 const { token } = require("../helpers/jwt");
 const nodemailer = require("nodemailer");
-// const { hashPassword } = require("../helpers/bcrypt");
+const { hashPassword } = require("../helpers/bcrypt");
 // var regularExpression =
 //   /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{6,16}$/;
 
@@ -24,6 +24,7 @@ const register = async (req, res, next) => {
       email,
       password,
       token_verification: token(generateModal),
+      numberOfTimesLoggedIn: 0,
     });
 
     //send email
@@ -141,6 +142,16 @@ const login = async (req, res, next) => {
       throw { name: "Unauthorized" };
     }
 
+    const addNumbersLogin = await User.update(
+      { numberOfTimesLoggedIn: response.numberOfTimesLoggedIn + 1 },
+      {
+        where: { email },
+        returning: true,
+      }
+    );
+
+    const finalResponse = await User.findOne({ where: { email } });
+
     const payload = {
       id: response.id,
       email: response.email,
@@ -151,6 +162,8 @@ const login = async (req, res, next) => {
       user_name: response.name,
       user_email: userEmail,
       access_token: token(payload),
+      active_at: finalResponse.active_at,
+      numberOfTimesLoggedIn: finalResponse.numberOfTimesLoggedIn,
     });
   } catch (error) {
     console.log(error);
@@ -226,26 +239,24 @@ const resetPassword = async (req, res) => {
     if (newPassword !== reEnterNewPassword) {
       throw { name: "password do not match" };
     }
-    if (findUser && password === reEnterNewPassword) {
-      const result = await User.update(
-        { password: hashPassword(newPassword) },
-        { where: { id }, returning: true }
-      );
 
-      res.status(200).json({
-        code: 200,
-        status: "success",
-        message: `Password has been updated`,
-      });
-    } else {
-      res.status(400).json({
-        code: 400,
-        status: "failed",
-        message: `User ID not found`,
-      });
+    const isValid = bcrypt.compareSync(password, findUser.password);
+    if (!isValid) {
+      throw { name: "Unauthorized" };
     }
+
+    const result = await User.update(
+      { password: hashPassword(newPassword) },
+      { where: { id }, returning: true }
+    );
+
+    res.status(200).json({
+      code: 200,
+      status: "success",
+      message: `Password has been updated`,
+    });
   } catch (error) {
-    // console.log(error)
+    console.log(error);
     if (
       error.name === "SequelizeValidationError" ||
       error.name === "SequelizeUniqueConstraintError"
@@ -256,17 +267,69 @@ const resetPassword = async (req, res) => {
         code: 400,
         status: "failed",
         message: "User not found",
-        // data: [],
       });
     } else if (error.name === "password do not match") {
       res.status(400).json({
         code: 400,
         status: "failed",
         message: "password do not match",
-        // data: [],
+      });
+    } else if (error.name === "Unauthorized") {
+      res.status(400).json({
+        code: 400,
+        status: "failed",
+        message: "Wrong Password!",
       });
     }
   }
 };
 
-module.exports = { register, login, resetPassword, fetchUser, verifyEmail };
+const updateProfile = async (req, res) => {
+  try {
+    const { name } = req.body;
+    const { id } = req.params;
+
+    const findUser = await User.findOne({ where: { id } });
+
+    if (!findUser) {
+      throw { name: "not found" };
+    } else {
+      const result = await User.update(
+        { name },
+        { where: { id }, returning: true }
+      );
+    }
+    const afterUpdate = await User.findOne({
+      attributes: { exclude: ["password", "token_verification"] },
+      where: { id },
+    });
+    res.status(200).json({
+      code: 200,
+      status: "success",
+      message: `Profile has been updated`,
+      data: afterUpdate,
+    });
+  } catch (error) {
+    if (
+      error.name === "SequelizeValidationError" ||
+      error.name === "SequelizeUniqueConstraintError"
+    ) {
+      (errorCode = 400), (msg = error.errors.map((el) => el.message));
+    } else if (error.name === "not found") {
+      res.status(400).json({
+        code: 400,
+        status: "failed",
+        message: "User not found",
+      });
+    }
+  }
+};
+
+module.exports = {
+  register,
+  login,
+  resetPassword,
+  fetchUser,
+  verifyEmail,
+  updateProfile,
+};
