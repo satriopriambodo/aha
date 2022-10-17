@@ -226,6 +226,43 @@ const fetchUser = async (req, res, next) => {
   }
 };
 
+const getOneUser = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const result = await User.findByPk(id);
+
+    if (result) {
+      res.status(200).json({
+        code: 200,
+        status: "success",
+        message: "Success get one user",
+        data: result,
+      });
+    } else {
+      res.status(404).json({
+        code: 404,
+        status: "failed",
+        message: `User id ${id} not found`,
+        data: [],
+      });
+    }
+  } catch (error) {
+    if (
+      error.name === "SequelizeValidationError" ||
+      error.name === "SequelizeUniqueConstraintError"
+    ) {
+      error.errors.forEach((el) => {
+        errMsgs = el.message;
+      });
+      res.status(400).json({
+        code: 400,
+        status: "failed",
+        message: errMsgs,
+      });
+    }
+  }
+};
+
 const resetPassword = async (req, res) => {
   try {
     const { password, newPassword, reEnterNewPassword } = req.body;
@@ -332,4 +369,5 @@ module.exports = {
   fetchUser,
   verifyEmail,
   updateProfile,
+  getOneUser,
 };

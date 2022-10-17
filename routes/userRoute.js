@@ -7,6 +7,7 @@ const {
   verifyEmail,
   resetPassword,
   updateProfile,
+  getOneUser,
 } = require("../controllers/userController");
 const { authGoogle } = require("../controllers/authController");
 const { authentication } = require("../middlewares/middleware");
@@ -19,6 +20,7 @@ router.post("/auth_google", authGoogle);
 router.use(authentication);
 
 router.get("/", fetchUser);
+router.get("/:id", getOneUser);
 router.put("/change_password/:id", resetPassword);
 router.put("/update_profile/:id", updateProfile);
 
